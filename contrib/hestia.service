@@ -1,0 +1,9 @@
+[Unit]
+Description=Hestia: laptop health check (disks, temperatures, battery, memory, services)
+
+[Service]
+Type=oneshot
+# HESTIA_NTFY_URL and the HESTIA_* thresholds can be set in ~/.config/hestia/env
+EnvironmentFile=-%h/.config/hestia/env
+ExecStart=%h/.local/bin/hestia check --save --quiet
+Nice=10
