@@ -15,6 +15,11 @@ One static-ish binary, a status file for the
 [Olympos](https://github.com/fas0ftware/olympos) dashboard, and phone alerts
 (ntfy) **only when something changes**: a check that gets worse, or recovers.
 
+![Hestia: every health check with its status (fictional machine)](docs/web.png)
+<sub>`hestia web`: a read-only page at `http://127.0.0.1:8092/` that runs the checks on every refresh (`--demo`: the fictional machine shown here).</sub>
+
+From the terminal:
+
 ```
 $ hestia demo
 Hestia 0.1.0 · 2026-11-24T16:41:43Z
@@ -42,11 +47,6 @@ WARN     Restart            a restart is pending to finish updates (2 package(s)
 4 ok · 4 warn · 1 bad · 0 unknown
 ```
 <sub>(fictional machine)</sub>
-
-`hestia web` shows the same live on a read-only page at `http://127.0.0.1:8092/`
-(`--demo` for the fictional machine):
-
-![Hestia web page (fictional machine)](docs/web.png)
 
 ## Checks
 
