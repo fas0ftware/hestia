@@ -1,6 +1,6 @@
 # Hestia
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.2.0-blue)
 ![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)
 ![Root](https://img.shields.io/badge/root-not%20needed-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -42,6 +42,11 @@ WARN     Restart            a restart is pending to finish updates (2 package(s)
 4 ok · 4 warn · 1 bad · 0 unknown
 ```
 <sub>(fictional machine)</sub>
+
+`hestia web` shows the same live on a read-only page at `http://127.0.0.1:8092/`
+(`--demo` for the fictional machine):
+
+![Hestia web page (fictional machine)](docs/web.png)
 
 ## Checks
 
@@ -94,6 +99,7 @@ push fails, the change is sent again on the next run.
 |---|---|
 | `hestia` / `hestia check` | Run every check; `--json`, `--save [PATH]` (status file), `--ntfy URL`, `-q`, `--no-color` |
 | `hestia demo [--json]` | A fictional machine |
+| `hestia web [--port 8092] [--demo]` | A read-only page on 127.0.0.1 that runs the checks on every refresh |
 | `hestia --version` / `--help` | |
 
 The status file (`~/.local/state/hestia/status.json`, mode `0600`) is the
@@ -113,7 +119,7 @@ with `id`, `title`, `status`, `summary` and `details`.
 ## Tests
 
 ```sh
-cargo test        # 9 tests on a fake /sys and /proc, no root
+cargo test        # 10 tests on a fake /sys and /proc, no root
 cargo clippy --all-targets -- -D warnings
 ```
 
@@ -134,6 +140,11 @@ errors since boot.
 - SMART health of disks (needs root or a `smartctl` drop-in: optional).
 - Battery health history, to see wear over months.
 - Fan speeds and CPU throttling.
+
+## Changelog
+
+- **0.2.0** – `hestia web`: a read-only page on 127.0.0.1 (no new dependency: a small server on `std::net`, GET only, Host header checked against DNS rebinding, strict CSP, values inserted as text). Menu entry through FA Apps.
+- **0.1.0** – Disks, I/O errors, temperatures, battery wear, device batteries, memory, load, failed services, pending restart; ntfy on change; status file for Olympos.
 
 ## License
 

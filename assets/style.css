@@ -1,0 +1,24 @@
+:root { --bg: #f7f5f2; --panel: #fff; --text: #1f1b18; --muted: #6f6861; --line: #e8e2dc; --accent: #c2591e;
+        --ok: #2f7d4f; --warn: #b07b00; --bad: #c42b2b; --unknown: #8b949e; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #12100e; --panel: #1b1815; --text: #ece7e2; --muted: #a0978e; --line: #2d2824; --accent: #f08a4b;
+          --ok: #4cc27a; --warn: #e0b032; --bad: #ff5c5c; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+h1 { margin: 0; font-size: 20px; display: flex; gap: 8px; align-items: center; } h1 small { color: var(--muted); font-weight: 400; font-size: 13px; }
+main { max-width: 900px; margin: 0 auto; padding: 16px 20px; }
+.badge { font-weight: 700; font-size: 13px; padding: 4px 12px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; }
+.badge.ok { color: var(--ok); } .badge.warn { color: var(--warn); } .badge.bad { color: var(--bad); }
+#checks { list-style: none; margin: 0; padding: 0; }
+#checks > li { background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--unknown); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; }
+#checks > li.ok { border-left-color: var(--ok); } #checks > li.warn { border-left-color: var(--warn); } #checks > li.bad { border-left-color: var(--bad); }
+.head { display: grid; grid-template-columns: 4.5rem 9.5rem 1fr; gap: 10px; align-items: baseline; }
+.st { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+li.warn .st { color: var(--warn); } li.bad .st { color: var(--bad); } li.ok .st { color: var(--ok); }
+.sum { overflow-wrap: anywhere; }
+.details { margin: 6px 0 0 calc(14rem + 20px); padding: 0; list-style: none; color: var(--muted); font-size: 13px; }
+details { margin: 4px 0 0 calc(14rem + 20px); color: var(--muted); font-size: 13px; } details .details { margin-left: 0; }
+.muted { color: var(--muted); } footer { text-align: center; padding: 20px; font-size: 12px; }
+@media (max-width: 700px) { .head { grid-template-columns: 1fr; gap: 2px; } .details, details { margin-left: 0; } }

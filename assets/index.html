@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hestia</title>
+<link rel="icon" href="/static/hestia.svg">
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header>
+  <h1><img src="/static/hestia.svg" alt="" width="26" height="26"> Hestia <small id="ver"></small></h1>
+  <span id="status" class="badge">…</span>
+</header>
+<main>
+  <p id="sum" class="muted"></p>
+  <ul id="checks"></ul>
+</main>
+<footer class="muted">Read-only, live from /proc and /sys · refreshes every 30 s</footer>
+</body>
+</html>

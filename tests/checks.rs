@@ -200,3 +200,20 @@ fn cli_parsing() {
     assert!(a(&["--ntfy"]).is_err() && a(&["--bogus"]).is_err());
     assert_eq!(checks::octal_unescape("/media/my\\040disk"), "/media/my disk");
 }
+
+#[test]
+fn web_routes_are_read_only_and_local() {
+    use hestia::web::route;
+    let rep = || "{\"status\":\"ok\"}".to_string();
+    let r = route("GET", "/", "127.0.0.1:8092", rep);
+    assert_eq!(r.status, 200);
+    assert!(String::from_utf8(r.body).unwrap().contains("<title>Hestia</title>"));
+    assert_eq!(route("GET", "/api/report?x=1", "localhost:8092", rep).body, b"{\"status\":\"ok\"}");
+    assert_eq!(route("GET", "/static/hestia.svg", "[::1]:8092", rep).ctype, "image/svg+xml");
+    assert_eq!(route("GET", "/api/report", "evil.example:8092", rep).status, 400, "DNS rebinding refused");
+    assert_eq!(route("POST", "/api/report", "127.0.0.1", rep).status, 405);
+    assert_eq!(route("GET", "/../etc/passwd", "127.0.0.1", rep).status, 404);
+    let a = |v: &[&str]| cli::parse(&v.iter().map(|s| s.to_string()).collect::<Vec<_>>(), false).unwrap();
+    assert_eq!((a(&["web"]).cmd.as_str(), a(&["web"]).port), ("web", 8092));
+    assert_eq!(a(&["web", "--port", "9000"]).port, 9000);
+}

@@ -12,6 +12,7 @@ const HELP: &str = "hestia: is this laptop healthy? Disks, temperatures, battery
 usage:
   hestia [check] [--json] [--save [PATH]] [--ntfy URL] [-q] [--no-color]
   hestia demo [--json]
+  hestia web [--port 8092] [--demo]   a read-only page on 127.0.0.1 that runs the checks on every refresh
   hestia --version
 
   --save [PATH]  write the status file Olympos reads (default ~/.local/state/hestia/status.json)
@@ -30,17 +31,21 @@ pub struct Args {
     pub quiet: bool,
     pub color: bool,
     pub root: String,
+    pub port: u16,
+    pub demo: bool,
 }
 
 pub fn parse(argv: &[String], tty: bool) -> Result<Args, String> {
-    let mut a = Args { cmd: "check".into(), color: tty, root: "/".into(), ..Default::default() };
+    let mut a = Args { cmd: "check".into(), color: tty, root: "/".into(), port: 8092, ..Default::default() };
     let mut it = argv.iter().peekable();
     while let Some(x) = it.next() {
         match x.as_str() {
-            "check" | "demo" => a.cmd = x.clone(),
+            "check" | "demo" | "web" => a.cmd = x.clone(),
+            "--port" => a.port = it.next().and_then(|p| p.parse().ok()).ok_or("--port needs a number")?,
             "--json" => a.json = true,
             "-q" | "--quiet" => a.quiet = true,
             "--no-color" => a.color = false,
+            "--demo" => a.demo = true,
             "--save" => {
                 a.save = Some(match it.peek() {
                     Some(p) if !p.starts_with('-') && *p != "check" && *p != "demo" => it.next().cloned().unwrap_or_default(),
@@ -111,6 +116,22 @@ pub fn run(argv: &[String]) -> i32 {
             return 0;
         }
         _ => {}
+    }
+    if args.cmd == "web" {
+        let lim = match limits_from_env() {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("hestia: {e}");
+                return 2;
+            }
+        };
+        return match crate::web::serve(args.port, lim, args.demo) {
+            Ok(()) => 0,
+            Err(e) => {
+                eprintln!("hestia: {e}");
+                1
+            }
+        };
     }
     let checks = if args.cmd == "demo" {
         demo::checks()

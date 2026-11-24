@@ -5,5 +5,6 @@ pub mod checks;
 pub mod cli;
 pub mod demo;
 pub mod report;
+pub mod web;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
