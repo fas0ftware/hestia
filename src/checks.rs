@@ -45,10 +45,10 @@ pub struct Check {
 }
 
 impl Check {
-    fn new(id: &str, title: &str, status: Status, summary: impl Into<String>) -> Check {
+    pub fn new(id: &str, title: &str, status: Status, summary: impl Into<String>) -> Check {
         Check { id: id.into(), title: title.into(), status, summary: summary.into(), details: vec![] }
     }
-    fn with(mut self, details: Vec<String>) -> Check {
+    pub fn with(mut self, details: Vec<String>) -> Check {
         self.details = details;
         self
     }
@@ -168,13 +168,20 @@ pub fn octal_unescape(s: &str) -> String {
 
 const SKIP_FS: &[&str] = &["squashfs", "tmpfs", "devtmpfs", "overlay", "iso9660", "udf", "ramfs"];
 
-pub fn disks(sys: &Sys, lim: &Limits) -> Check {
-    let Some(mounts) = sys.read(sys.path("/proc/mounts")) else {
-        return Check::new("disks", "Disk space", Status::Unknown, "cannot read /proc/mounts");
-    };
+/// One real filesystem: its mount point (cleaned), size, free space and inode use.
+pub struct Mount {
+    pub name: String,
+    pub total: u64,
+    pub avail: u64,
+    pub inode_pct: f64,
+}
+
+/// Real filesystems only (no snaps, tmpfs, loop devices; a bind mount counts once). None: no /proc/mounts.
+pub fn mounts(sys: &Sys) -> Option<Vec<Mount>> {
+    let text = sys.read(sys.path("/proc/mounts"))?;
     let mut seen = std::collections::HashSet::new();
-    let (mut worst, mut details, mut fullest) = (Status::Ok, vec![], (0.0f64, String::new()));
-    for line in mounts.lines() {
+    let mut out = vec![];
+    for line in text.lines() {
         let f: Vec<&str> = line.split_whitespace().collect();
         if f.len() < 3 || !f[0].starts_with("/dev/") || f[0].starts_with("/dev/loop") || SKIP_FS.contains(&f[2]) {
             continue;
@@ -187,12 +194,24 @@ pub fn disks(sys: &Sys, lim: &Limits) -> Check {
         if total == 0 {
             continue;
         }
-        let used = 100.0 * (total - avail.min(total)) as f64 / total as f64;
-        let inodes = if files > 0 { 100.0 * (files - ffree.min(files)) as f64 / files as f64 } else { 0.0 };
+        let inode_pct = if files > 0 { 100.0 * (files - ffree.min(files)) as f64 / files as f64 } else { 0.0 };
+        out.push(Mount { name: clean(&mnt, 80), total, avail: avail.min(total), inode_pct });
+    }
+    Some(out)
+}
+
+pub fn disks(sys: &Sys, lim: &Limits) -> Check {
+    let Some(list) = mounts(sys) else {
+        return Check::new("disks", "Disk space", Status::Unknown, "cannot read /proc/mounts");
+    };
+    let (mut worst, mut details, mut fullest) = (Status::Ok, vec![], (0.0f64, String::new()));
+    for m in list {
+        let (total, avail, inodes) = (m.total, m.avail, m.inode_pct);
+        let used = 100.0 * (total - avail) as f64 / total as f64;
         let pct = used.max(inodes);
         let st = if pct >= lim.disk_bad { Status::Bad } else if pct >= lim.disk_warn { Status::Warn } else { Status::Ok };
         worst = worst.max(st);
-        let name = clean(&mnt, 80);
+        let name = m.name;
         let mut text = format!("{name}: {used:.0}% used, {} free of {}", human_bytes(avail), human_bytes(total));
         if inodes >= lim.disk_warn {
             text += &format!(", {inodes:.0}% of inodes used");
@@ -265,6 +284,19 @@ pub fn temperatures(sys: &Sys, lim: &Limits) -> Check {
     }
     let summary = format!("hottest: {} at {:.0} °C", hottest.1, hottest.0);
     Check::new("temperatures", "Temperatures", worst, summary).with(details)
+}
+
+/// How much of its design capacity the laptop's own battery still holds, in percent.
+pub fn battery_health(sys: &Sys) -> Option<f64> {
+    for ps in sorted_dir(&sys.path("/sys/class/power_supply")) {
+        if sys.read(ps.join("type")).as_deref() != Some("Battery") || sys.read(ps.join("scope")).as_deref() == Some("Device") {
+            continue;
+        }
+        let full = sys.num(ps.join("energy_full")).or_else(|| sys.num(ps.join("charge_full")))?;
+        let design = sys.num(ps.join("energy_full_design")).or_else(|| sys.num(ps.join("charge_full_design")))?;
+        return (design > 0.0).then(|| (100.0 * full / design).min(100.0));
+    }
+    None
 }
 
 pub fn battery(sys: &Sys, lim: &Limits) -> Vec<Check> {

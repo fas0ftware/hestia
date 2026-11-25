@@ -4,6 +4,7 @@ pub mod alerts;
 pub mod checks;
 pub mod cli;
 pub mod demo;
+pub mod history;
 pub mod report;
 pub mod web;
 

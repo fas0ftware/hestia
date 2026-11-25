@@ -145,7 +145,12 @@ pub fn run(argv: &[String]) -> i32 {
         };
         let mut sys = Sys::real();
         sys.root = PathBuf::from(&args.root);
-        checks::all(&sys, &lim)
+        let mut found = checks::all(&sys, &lim);
+        if args.root == "/" {
+            // only this machine's own numbers go into its history (not a test tree from --root)
+            crate::history::apply(&sys, &state_dir().join("history.jsonl"), report::now_secs(), &mut found);
+        }
+        found
     };
     let rep = Report::new(checks, report::now_secs());
     if !args.quiet {

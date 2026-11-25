@@ -77,7 +77,14 @@ fn handle(stream: TcpStream, lim: &Limits, demo: bool) -> std::io::Result<()> {
     let mut parts = first.split_whitespace();
     let (method, path) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
     let res = route(method, path, &host, || {
-        let found = if demo { crate::demo::checks() } else { checks::all(&Sys::real(), lim) };
+        let found = if demo {
+            crate::demo::checks()
+        } else {
+            let sys = Sys::real();
+            let mut found = checks::all(&sys, lim);
+            crate::history::apply(&sys, &crate::cli::state_dir().join("history.jsonl"), report::now_secs(), &mut found);
+            found
+        };
         let rep = Report::new(found, report::now_secs());
         serde_json::to_string(&rep.json()).unwrap_or_default()
     });

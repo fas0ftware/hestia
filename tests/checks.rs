@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use hestia::alerts;
-use hestia::checks::{self, Limits, Status, Sys};
+use hestia::checks::{self, Check, Limits, Status, Sys};
 use hestia::cli;
 use hestia::report::{self, Report};
 
@@ -216,4 +216,60 @@ fn web_routes_are_read_only_and_local() {
     let a = |v: &[&str]| cli::parse(&v.iter().map(|s| s.to_string()).collect::<Vec<_>>(), false).unwrap();
     assert_eq!((a(&["web"]).cmd.as_str(), a(&["web"]).port), ("web", 8092));
     assert_eq!(a(&["web", "--port", "9000"]).port, 9000);
+}
+
+#[test]
+fn history_trend_and_battery_note() {
+    use hestia::history::{self, Sample};
+    use std::collections::BTreeMap;
+    let d = tempfile::tempdir().unwrap();
+    let path = d.path().join("st/history.jsonl");
+    let gib = 1u64 << 30;
+    let day = 86400u64;
+    let t0 = 1_790_000_000u64;
+    let s = |t: u64, avail_root: u64, avail_data: u64, bat: f64| Sample {
+        t,
+        disks: BTreeMap::from([("/".to_string(), (100 * gib, avail_root)), ("/data".to_string(), (500 * gib, avail_data))]),
+        battery: Some(bat),
+    };
+    // 40 days: / loses 2 GiB a day, /data stays put, the battery goes from 98 to 94
+    for i in 0..40u64 {
+        history::record(&path, s(t0 + i * day, 90 * gib - i * 2 * gib, 300 * gib, 98.0 - i as f64 * 0.1)).unwrap();
+    }
+    assert_eq!(history::record(&path, s(t0 + 39 * day + 60, 1, 1, 1.0)).unwrap().len(), 40, "at most one an hour");
+    let all = history::load(&path);
+    let now = t0 + 39 * day;
+    let c = history::disk_trend(&all, now);
+    // 12 GiB left at 2 GiB a day: 6 days -> bad
+    assert_eq!(c.status, Status::Bad, "{c:?}");
+    assert!(c.summary.starts_with("/ fills in about 6 days (+2.0 GiB/day"), "{}", c.summary);
+    assert!(c.details.contains(&"/data: steady".to_string()));
+    let mut checks = vec![Check::new("battery", "Battery", Status::Ok, "ok")];
+    history::battery_note(&mut checks, &all, now);
+    assert_eq!(checks[0].details, vec!["39 days ago it held 98%, now 94% (-3.9 points)"]);
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    // not enough history yet
+    let young = history::disk_trend(&all[..1], t0);
+    assert_eq!((young.status, young.summary.as_str()), (Status::Unknown, "collecting history: 0.0 of 2 days so far"));
+    // a damaged line is skipped
+    fs::write(&path, format!("garbage\n{}\n", serde_json::to_string(&all[0]).unwrap())).unwrap();
+    assert_eq!(history::load(&path).len(), 1);
+    // samples older than 90 days are dropped when a new one comes much later
+    history::record(&path, s(t0 + 120 * day, 50 * gib, 300 * gib, 90.0)).unwrap();
+    assert_eq!(history::load(&path).len(), 1);
+}
+
+#[test]
+fn slow_growth_is_ok_and_steady_disks_say_so() {
+    use hestia::history::{self, Sample};
+    use std::collections::BTreeMap;
+    let gib = 1u64 << 30;
+    let mk = |i: u64, avail: u64| Sample { t: 1_790_000_000 + i * 86400, disks: BTreeMap::from([("/".to_string(), (100 * gib, avail))]), battery: None };
+    let slow: Vec<Sample> = (0..10).map(|i| mk(i, 80 * gib - i * gib / 4)).collect(); // 256 MiB a day, 77 GiB left
+    let c = history::disk_trend(&slow, slow[9].t);
+    assert_eq!(c.status, Status::Ok);
+    assert!(c.summary.starts_with("no disk will be full within a month"), "{}", c.summary);
+    let flat: Vec<Sample> = (0..10).map(|i| mk(i, 80 * gib)).collect();
+    assert_eq!(history::disk_trend(&flat, flat[9].t).summary, "disks steady over the last 9 days");
 }

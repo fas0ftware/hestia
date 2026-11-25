@@ -1,7 +1,7 @@
 # Hestia
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
-![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
+![Rust](https://img.shields.io/badge/rust-1.82%2B-orange)
 ![Root](https://img.shields.io/badge/root-not%20needed-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -54,6 +54,7 @@ WARN     Restart            a restart is pending to finish updates (2 package(s)
 |---|---|---|---|
 | Disk space | 85% of space *or* inodes | 95% | `/proc/mounts` + `statvfs`; real filesystems only (no snaps, tmpfs, loop devices; a bind mount counts once) |
 | Disk errors | any I/O error since boot | | `/sys/block/*/device/ioerr_cnt` |
+| Disk trend | a disk full within 30 days at the rate of the last two weeks | within 7 days | Hestia's own history (below) |
 | Temperatures | the sensor's own `max`, at most 85 °C | its `crit`, at most 95 °C | `/sys/class/hwmon`; unconnected sensors (−273 °C) are skipped |
 | Battery | 30% worn | 50% worn | `/sys/class/power_supply`: full vs design capacity, charge, cycles |
 | Wireless devices | a mouse or keyboard battery at 15% or less | | power supplies with `scope=Device` |
@@ -61,6 +62,14 @@ WARN     Restart            a restart is pending to finish updates (2 package(s)
 | CPU load | 15-minute load over 1.5 per CPU | | `/proc/loadavg`, `/proc/cpuinfo` |
 | Services | | any failed system or user unit | `systemctl --failed` and `systemctl --user --failed` |
 | Restart | updates wait for a restart | | `/run/reboot-required(.pkgs)` (Debian, Ubuntu) |
+
+### History
+
+Every run adds a sample to `~/.local/state/hestia/history.jsonl` (at most one an hour, kept 90
+days, `0600`): each disk's size and free space, and the battery's health. From two days on,
+**Disk trend** fits a line through the last two weeks and says when the fastest-filling disk
+would be full ("/ fills in about 23 days, +1.8 GiB/day"); under 50 MiB a day a disk counts as
+steady. After a month, the battery check adds how much it held then and now.
 
 A check that cannot be read (no sensors in a VM, no systemd) is `unknown` and
 does not make the overall status worse. Every limit can be changed in the
@@ -119,7 +128,7 @@ with `id`, `title`, `status`, `summary` and `details`.
 ## Tests
 
 ```sh
-cargo test        # 10 tests on a fake /sys and /proc, no root
+cargo test        # 12 tests on a fake /sys and /proc, no root
 cargo clippy --all-targets -- -D warnings
 ```
 
@@ -143,6 +152,7 @@ errors since boot.
 
 ## Changelog
 
+- **0.3.0** – History and trends: a sample an hour for 90 days; *Disk trend* (when the fastest-filling disk would be full, from the last two weeks) and the battery's change over a month or more. Rust 1.82.
 - **0.2.0** – `hestia web`: a read-only page on 127.0.0.1 (no new dependency: a small server on `std::net`, GET only, Host header checked against DNS rebinding, strict CSP, values inserted as text). Menu entry through FA Apps.
 - **0.1.0** – Disks, I/O errors, temperatures, battery wear, device batteries, memory, load, failed services, pending restart; ntfy on change; status file for Olympos.
 

@@ -19,7 +19,7 @@ jobs:
       - run: cargo test
       - name: Demo, and a real check of the CI machine (read-only)
         run: |
-          cargo run --quiet -- demo --json | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['status'] == 'bad' and d['counts']['warn'] == 4"
+          cargo run --quiet -- demo --json | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['status'] == 'bad' and d['counts']['warn'] == 5"
           cargo run --quiet -- check --no-color
           cargo run --quiet -- --save /tmp/hestia.json -q && test "$(stat -c %a /tmp/hestia.json)" = 600
 
